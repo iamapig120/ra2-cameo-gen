@@ -440,21 +440,36 @@ const RgbQuant = require('rgbquant')
 
   const enabelButtons = () => {
     OutputAsPNG.disabled = false
+    OutputAsPNG_HiRes.disabled = false
     OutputAsSHP.disabled = false
     OutputAsPCX.disabled = false
     OutputAsPCX_FullColor.disabled = false
   }
 
-  Redraw.onclick = () => {
+  Redraw.addEventListener("click", () => {
+    /** @type {CanvasRenderingContext2D} */
     const ctxView = ViewCanvas.getContext('2d')
     ctxView.clearRect(0, 0, 60, 48)
-    ctxView.drawImage(getIconCanvas(), 0, 0)
+    ctxView.drawImage(getIconCanvas(), 0, 0, 60, 48)
     enabelButtons()
-  }
+  })
 
   OutputAsPNG.onclick = () => {
-    /** @type {CanvasRenderingContext2D} */
     const url = ViewCanvas.toDataURL('image/png')
+    openDownloadDialog(url, 'cameo.png')
+  }
+
+  OutputAsPNG_HiRes.onclick = () => {
+    const scale = 5
+    const scaledCanvas = document.createElement('canvas')
+    scaledCanvas.width = 60 * scale
+    scaledCanvas.height = 48 * scale
+
+    const scaledCtx = scaledCanvas.getContext('2d')
+    scaledCtx.imageSmoothingEnabled = false
+    scaledCtx.drawImage(ViewCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height)
+
+    const url = scaledCanvas.toDataURL('image/png')
     openDownloadDialog(url, 'cameo.png')
   }
 
