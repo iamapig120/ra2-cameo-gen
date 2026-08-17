@@ -9,7 +9,7 @@
     "pack": "webpack --mode=production "
   },
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0",
   "dependencies": {
     "bdfjs": "^0.0.8",
     "color-delta-e": "^1.1.2",
