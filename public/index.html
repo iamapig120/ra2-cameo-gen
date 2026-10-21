@@ -1,415 +1,484 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-
-<head>
+  <head>
     <title>红色警戒2图标生成器 | Red Alert 2 Cameo Generator</title>
     <meta charset="UTF-8" />
-    <link rel="icon" href="favicon.ico">
-    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="favicon.ico" />
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
     <style>
-        *{
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            -webkit-font-smoothing: none;
-            font-smooth: never;
-            -webkit-text-size-adjust: none;
-            text-size-adjust: none;
-            transform: scale(1);
-            font-variation-settings: none;
-            /* text-rendering: geometricPrecision; */
-            transform: scale(1);
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: none;
+        font-smooth: never;
+        -webkit-text-size-adjust: none;
+        text-size-adjust: none;
+        transform: scale(1);
+        font-variation-settings: none;
+        /* text-rendering: geometricPrecision; */
+        transform: scale(1);
+      }
 
-        #ViewCanvas {
-            image-rendering: pixelated;
-            width: 150px;
-            height: 120px;
-            position: absolute;
-            right: 8px;
-            top: 35px;
-        }
+      #ViewCanvas {
+        image-rendering: pixelated;
+        width: 150px;
+        height: 120px;
+        position: absolute;
+        right: 8px;
+        top: 35px;
+      }
 
-        .workspace {
-            position: absolute;
-            width: 632px;
-            height: 568px;
-            left: 0;
-            top: 0;
-            background-color: transparent;
-            background-image: none;
-            padding-left: 30px;
-            padding-top: 30px;
-        }
+      .workspace {
+        position: absolute;
+        width: 632px;
+        height: 568px;
+        left: 0;
+        top: 0;
+        background-color: transparent;
+        background-image: none;
+        padding-left: 30px;
+        padding-top: 30px;
+      }
 
-        @font-face {
-            font-family: 'IPix';
-            src: url('IPix.ttf') format('truetype');
-            /* font-display: swap; */
-            font-weight: normal;
-            font-style: normal;
-        }
+      @font-face {
+        font-family: 'IPix';
+        src: url('IPix.ttf') format('truetype');
+        /* font-display: swap; */
+        font-weight: normal;
+        font-style: normal;
+      }
 
-        body {
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #000000;
-            font-family: 'IPix', sans-serif;
-            color: #ffff00;
-            font-size: 16px;
-            min-width: 800px;
-            min-height: 600px;
-        }
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        height: 100svh;
+        width: 100vw;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #000000;
+        font-family: 'IPix', sans-serif;
+        color: #ffff00;
+        font-size: 16px;
+      }
 
-        p {
-            user-select: none;
-        }
+      p {
+        user-select: none;
+      }
 
-        .page-title {
-            font-size: 16px;
-            box-sizing: border-box;
-            position: absolute;
-            width: 166px;
-            height: 20px;
-            text-align: center;
-            right: 0;
-            top: 4px;
-            user-select: none;
-            font-weight: normal;
-        }
+      .page-title {
+        font-size: 16px;
+        box-sizing: border-box;
+        position: absolute;
+        width: 166px;
+        height: 20px;
+        text-align: center;
+        right: 0;
+        top: 4px;
+        user-select: none;
+        font-weight: normal;
+      }
 
-        .center-box {
-            width: 800px;
-            height: 600px;
-            position: relative;
-            border: 0;
-            background-image: url('bg.png');
-            background-size: cover;
-            background-repeat: no-repeat;
-        }
+      .center-box {
+        width: 800px;
+        height: 600px;
+        flex-shrink: 0;
+        transform: scale(var(--ui-scale, 1));
+        position: relative;
+        border: 0;
+        background-image: url('bg.png');
+        background-size: cover;
+        background-repeat: no-repeat;
+      }
 
-        .button-column {
-            position: absolute;
-            left: 645px;
-            top: 198px;
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-        }
+      .button-column {
+        position: absolute;
+        left: 645px;
+        top: 198px;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
 
-        .btn_r {
-            width: 144px;
-            height: 42px;
-            border: none;
-            cursor: pointer;
-            font-family: 'IPix', sans-serif;
-            color: #ffff00;
-            font-size: 16px;
-            background-image: url('button.png');
-            background-size: cover;
-            line-height: 42px;
-            text-align: center;
-        }
+      .btn_r {
+        width: 144px;
+        height: 42px;
+        border: none;
+        cursor: pointer;
+        font-family: 'IPix', sans-serif;
+        color: #ffff00;
+        font-size: 16px;
+        background-image: url('button.png');
+        background-size: cover;
+        line-height: 42px;
+        text-align: center;
+      }
 
-        .btn_r:active {
-            background-image: url('button_c.png');
-            transform: translateY(1px);
-        }
+      .btn_r:active {
+        background-image: url('button_c.png');
+        transform: translateY(1px);
+      }
 
-        .btn_r:disabled {
-            cursor: default;
-            color: #4a0000;
-        }
+      .btn_r:disabled {
+        cursor: default;
+        color: #4a0000;
+      }
 
-        .btn_r:disabled:active {
-            background-image: url('button.png');
-            transform: none;
-        }
+      .btn_r:disabled:active {
+        background-image: url('button.png');
+        transform: none;
+      }
 
-        /* @supports (font-variation-settings: normal) {
+      /* @supports (font-variation-settings: normal) {
             body {
                 font-family: 'IPix', sans-serif;
             }
         } */
 
-        textarea {
-            background-color: #000000;
-            border: 2px solid #ff0000;
-            color: #ffff00;
-            font-family: 'IPix', monospace;
-            padding: 10px;
-            font-size: 16px;
-            margin-bottom: 4px;
-        }
+      textarea {
+        background-color: #000000;
+        border: 2px solid #ff0000;
+        color: #ffff00;
+        font-family: 'IPix', monospace;
+        padding: 10px;
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
 
-        textarea:focus::placeholder {
-            color: transparent;
-        }
+      textarea:focus::placeholder {
+        color: transparent;
+      }
 
+      input[type='checkbox'] {
+        opacity: 0;
+        position: absolute;
+      }
 
-        input[type="checkbox"] {
-            opacity: 0;
-            position: absolute;
-        }
+      input[type='checkbox'] + label {
+        position: relative;
+        padding-left: 30px;
 
+        cursor: pointer;
+        vertical-align: middle;
+      }
 
-        input[type="checkbox"]+label {
-            position: relative;
-            padding-left: 30px;
+      input[type='checkbox'] + label::before {
+        content: '';
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        background: url(unchecked.png) no-repeat;
 
-            cursor: pointer;
-            vertical-align: middle;
-        }
+        background-size: contain;
+      }
 
+      input[type='checkbox']:checked + label::before {
+        background-image: url(checked.png);
+      }
 
-        input[type="checkbox"]+label::before {
-            content: "";
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            background: url(unchecked.png) no-repeat;
+      #IconImage {
+        opacity: 0;
+        position: absolute;
+        z-index: -1;
+      }
 
-            background-size: contain;
-        }
+      .ra2cameo-common-button {
+        width: 75px;
+        height: 23px;
+        border: none;
 
+        display: inline-flex;
+        justify-content: center;
+        background-image: url('75pxbtn.png');
+        background-size: cover;
+        font-family: 'IPix', sans-serif;
+        color: #ffff00;
+        font-size: 16px;
+        line-height: 23px;
 
-        input[type="checkbox"]:checked+label::before {
-            background-image: url(checked.png);
+        cursor: pointer;
+      }
 
-        }
+      .ra2cameo-common-button:active {
+        background-image: url('75pxbtn_c.png');
+      }
 
-        #IconImage {
-            opacity: 0;
-            position: absolute;
-            z-index: -1;
-        }
+      #ReadyTextColor {
+        border: 1px solid red !important;
+        padding: 0 !important;
+        background: transparent !important;
+        box-sizing: border-box;
+        overflow: hidden;
+        vertical-align: middle;
+        height: 20px;
+      }
 
-        .ra2cameo-common-button {
-            width: 75px;
-            height: 23px;
-            border: none;
+      #ReadyTextColor::-webkit-color-swatch {
+        border: none !important;
+        border-radius: 0;
+      }
 
-            display: inline-flex;
-            justify-content: center;
-            background-image: url('75pxbtn.png');
-            background-size: cover;
-            font-family: 'IPix', sans-serif;
-            color: #ffff00;
-            font-size: 16px;
-            line-height: 23px;
+      #ReadyTextColor::-webkit-color-swatch-wrapper {
+        padding: 0 !important;
+      }
 
-            cursor: pointer;
-        }
+      #ReadyTextColor::-webkit-color-swatch {
+        border: 1px solid red !important;
+        box-sizing: border-box;
+      }
 
+      .modal-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        z-index: 1000;
+      }
 
-        .ra2cameo-common-button:active {
-            background-image: url('75pxbtn_c.png');
-        }
+      .custom-modal {
+        box-sizing: border-box;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-image: url('modal.png');
+        padding: 20px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        height: 326px;
+        width: 451px;
+        display: none;
+        background-size: cover;
+        z-index: 1001;
+        /* animation: slidein 0.3s ease; */
+        border-radius: 10px;
+        line-height: 20px;
+        padding-left: 21px;
+      }
 
-        #ReadyTextColor {
-            border: 1px solid red !important;
-            padding: 0 !important;
-            background: transparent !important;
-            box-sizing: border-box;
-            overflow: hidden;
-            vertical-align: middle;
-            height: 20px;
-        }
+      .custom-modal p {
+        margin-bottom: 12px;
+      }
 
-        #ReadyTextColor::-webkit-color-swatch {
-            border: none !important;
-            border-radius: 0;
-        }
+      .cancel-btn {
+        position: absolute;
+        right: 30px;
+        bottom: 30px;
+      }
 
-        #ReadyTextColor::-webkit-color-swatch-wrapper {
-            padding: 0 !important;
-        }
+      .label-item {
+        line-height: 20px;
+        margin-bottom: 12px;
+      }
 
-        #ReadyTextColor::-webkit-color-swatch {
-            border: 1px solid red !important;
-            box-sizing: border-box;
-        }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            z-index: 1000;
-        }
-
-        .custom-modal {
-            box-sizing: border-box;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-image: url('modal.png');
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-            height: 326px;
-            width: 451px;
-            display: none;
-            background-size: cover;
-            z-index: 1001;
-            /* animation: slidein 0.3s ease; */
-            border-radius: 10px;
-            line-height: 20px;
-            padding-left: 21px;
-        }
-
-        .custom-modal p {
-            margin-bottom: 12px;
-        }
-
-        .cancel-btn {
-            position: absolute;
-            right: 30px;
-            bottom: 30px;
-        }
-
-        .label-item {
-            line-height: 20px;
-            margin-bottom: 12px;
-        }
-
-        a:link,
-        a:visited,
-        a:hover,
-        a:active {
-            color: #ffff00 !important;
-        }
+      a:link,
+      a:visited,
+      a:hover,
+      a:active {
+        color: #ffff00 !important;
+      }
     </style>
     <script>
-    var _hmt = _hmt || []
-    ;(function () {
+      var _hmt = _hmt || []
+      ;(function () {
         var hm = document.createElement('script')
         hm.src = 'https://hm.baidu.com/hm.js?89985731c02fd5ebad9d8ba486729d29'
         var s = document.getElementsByTagName('script')[0]
         s.parentNode.insertBefore(hm, s)
-    })()
+      })()
     </script>
-</head>
+  </head>
 
-<body>
-
-    <div class="modal-overlay" id="overlay"></div>
-
-    <div class="custom-modal" id="modal">
-        <p>网页加载需要时间，请等待网页加载完毕后再选择合适的图片生成图标以避免生成失败。如果觉得这个工具帮助到了您，希望可以在您的素材列表中引用本工具网址，谢谢。
-        </p>
-        <p>本工具仅供学习交流使用，不得用于商业用途，请勿生成任何违法违规内容！</p>
-        <p>程序：<a href="https://www.bysb.net/">手柄</a>（<a href="https://www.bysb.net/donate">赞助</a>） | 界面：<a href="https://ra2cameo.geek-talk.cn">极客谈</a></p>
-        <p>项目仓库：<a href="https://github.com/iamapig120/ra2-cameo-gen">GitHub</a></p>
-        <p>本程序是非营利性的粉丝项目，与Electronic Arts Inc.没有任何关联。所有权利均由其各自所有者持有。</p>
-        <button class="ra2cameo-common-button cancel-btn">确定</button>
-    </div>
-    </div>
+  <body>
     <div class="center-box">
-        <h1 class="page-title">图标生成器</h1>
-        <canvas id="ViewCanvas" height="48" width="60"></canvas>
-        <!-- 工作区 -->
-        <div class="workspace">
+      <div class="modal-overlay" id="overlay"></div>
 
-            <p class="label-item">
-                <input type="checkbox" name="enable_full_eng_name" id="EnableFullEnglishName" /><label
-                    for="EnableFullEnglishName">Full Enghlish Unit Name</label>
-            </p>
-            <p>
-                <textarea name="unit_name_textarea" id="UnitName" cols="16" rows="4" placeholder="单位名称&#10支持多行"></textarea>
-            </p>
-            <p class="label-item">
-                <input type="checkbox" name="enable_rating_sign" id="EnableRatingSign" /><label
-                    for="EnableRatingSign">显示升级图示</label>
-            </p>
-            <p class="label-item" id="EnableCameoColor_P">
-                <input type="checkbox" name="enable_cameo_color" id="EnableCameoColor" /><label
-                    for="EnableCameoColor">使用原版色盘</label>
-            </p>
-            <p class="label-item">
-                <input type="checkbox" name="enable_ready_text" id="EnableReadyText" /><label
-                    for="EnableReadyText">显示就绪文字</label>
-            </p>
-            <p class="label-item">
-                <input type="color" name="ready_text_color" id="ReadyTextColor" value="#FFFF00" />
-                <label for="ReadyTextColor"> 就绪文字颜色</label>
-            </p>
-            <p class="label-item">
-                <input type="file" name="icon_image" id="IconImage" accept="image/*"
-                    onchange="document.getElementById('fileName').textContent = this.files[0].name" />
-                <label for="IconImage" class="ra2cameo-common-button">选择原图
-                </label>
-                <span id="fileName"></span>
-            </p>
+      <div class="custom-modal" id="modal">
+        <span id="modalContext">
+          <p>
+            网页加载需要时间，请等待网页加载完毕后再选择合适的图片生成图标以避免生成失败。如果觉得这个工具帮助到了您，希望可以在您的素材列表中引用本工具网址，谢谢。
+          </p>
+          <p>
+            本工具仅供学习交流使用，不得用于商业用途，请勿生成任何违法违规内容！
+          </p>
+          <p>
+            程序：<a href="https://space.bilibili.com/2661948" target="_blank" rel="noopener noreferrer">手柄Official</a>（<a
+              href="https://www.bysb.net/donate"
+              target="_blank" rel="noopener noreferrer"
+              >赞助</a
+            >） | 界面：<a href="https://ra2cameo.geek-talk.cn" target="_blank" rel="noopener noreferrer">极客谈</a>
+          </p>
+          <p>
+            项目仓库：<a href="https://github.com/iamapig120/ra2-cameo-gen"
+              target="_blank" rel="noopener noreferrer"
+              >GitHub</a
+            >
+          </p>
+          <p>
+            本程序是非营利性的粉丝项目，与Electronic Arts
+            Inc.没有任何关联。所有权利均由其各自所有者持有。
+          </p>
+        </span>
+        <button class="ra2cameo-common-button cancel-btn">确定</button>
+      </div>
+      <h1 class="page-title">图标生成器</h1>
+      <canvas id="ViewCanvas" height="48" width="60"></canvas>
+      <!-- 工作区 -->
+      <div class="workspace">
+        <p class="label-item">
+          <input
+            type="checkbox"
+            name="enable_full_eng_name"
+            id="EnableFullEnglishName"
+          /><label for="EnableFullEnglishName">Full Enghlish Unit Name</label>
+        </p>
+        <p>
+          <textarea
+            name="unit_name_textarea"
+            id="UnitName"
+            cols="16"
+            rows="4"
+            placeholder="单位名称&#10;支持多行"
+          ></textarea>
+        </p>
+        <p class="label-item">
+          <input
+            type="checkbox"
+            name="enable_rating_sign"
+            id="EnableRatingSign"
+          /><label for="EnableRatingSign">显示升级图示</label>
+        </p>
+        <p class="label-item" id="EnableCameoColor_P">
+          <input
+            type="checkbox"
+            name="enable_cameo_color"
+            id="EnableCameoColor"
+          /><label for="EnableCameoColor">使用原版色盘</label>
+        </p>
+        <p class="label-item">
+          <input
+            type="checkbox"
+            name="enable_ready_text"
+            id="EnableReadyText"
+          /><label for="EnableReadyText">显示就绪文字</label>
+        </p>
+        <p class="label-item">
+          <input
+            type="color"
+            name="ready_text_color"
+            id="ReadyTextColor"
+            value="#FFFF00"
+          />
+          <label for="ReadyTextColor"> 就绪文字颜色</label>
+        </p>
+        <p class="label-item">
+          <input
+            type="file"
+            name="icon_image"
+            id="IconImage"
+            accept="image/*"
+            onchange="
+              document.getElementById('fileName').textContent =
+                this.files[0].name
+            "
+          />
+          <label for="IconImage" class="ra2cameo-common-button"
+            >选择原图
+          </label>
+          <span id="fileName"></span>
+        </p>
+      </div>
 
-        </div>
-
-        <div class="button-column">
-            <button type="button" class="btn_r" id="Redraw">绘制图像</button>
-            <button type="button" class="btn_r" id="OutputAsPNG" disabled>导出PNG</button>
-            <button type="button" class="btn_r" id="OutputAsPNG_HiRes" disabled>导出斗图</button>
-            <button type="button" class="btn_r" id="OutputAsSHP" disabled>导出SHP</button>
-            <button type="button" class="btn_r" id="OutputAsPCX" disabled>导出256色PCX</button>
-            <button type="button" class="btn_r" id="OutputAsPCX_FullColor" disabled>导出全彩PCX</button>
-
-        </div>
+      <div class="button-column">
+        <button type="button" class="btn_r" id="Redraw">绘制图像</button>
+        <button type="button" class="btn_r" id="OutputAsPNG" disabled>
+          导出PNG
+        </button>
+        <button type="button" class="btn_r" id="OutputAsPNG_HiRes" disabled>
+          导出高清PNG
+        </button>
+        <button type="button" class="btn_r" id="OutputAsSHP" disabled>
+          导出SHP
+        </button>
+        <button type="button" class="btn_r" id="OutputAsPCX" disabled>
+          导出256色PCX
+        </button>
+        <button type="button" class="btn_r" id="OutputAsPCX_FullColor" disabled>
+          导出全彩PCX
+        </button>
+      </div>
     </div>
 
-    <link rel="preload" href="IPix.ttf" as="font" type="font/ttf" crossorigin>
-</body>
+    <link rel="preload" href="IPix.ttf" as="font" type="font/ttf" crossorigin />
+  </body>
 
+  <script>
+    const centerBox = document.querySelector('.center-box')
+    function fitWindow() {
+      // Layout dimensions stay stable during native pinch zoom and keyboard resize.
+      const scale = Math.min(
+        1,
+        document.body.clientWidth / 800,
+        document.body.clientHeight / 600,
+      )
+      centerBox.style.setProperty('--ui-scale', scale)
+    }
+    fitWindow()
+    window.addEventListener('resize', fitWindow)
 
-<script>
-    const modal = document.getElementById('modal');
-    const overlay = document.getElementById('overlay');
-    const cancelBtn = modal.querySelector('.cancel-btn');
-    function openModal() {
-        overlay.style.display = 'block';
-        modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
+    const modal = document.getElementById('modal')
+    const overlay = document.getElementById('overlay')
+    const cancelBtn = modal.querySelector('.cancel-btn')
+    function openModal(text) {
+      if (text) {
+        const p = document.createElement('p')
+        p.textContent = text
+        document.getElementById('modalContext').innerHTML = ''
+        document.getElementById('modalContext').appendChild(p)
+      }
+      overlay.style.display = 'block'
+      modal.style.display = 'block'
     }
 
-
     function closeModal() {
-        overlay.style.display = 'none';
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
+      overlay.style.display = 'none'
+      modal.style.display = 'none'
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        openModal();
-        cancelBtn.addEventListener('click', closeModal);
-    });
-</script>
-<script src="main.js"></script>
-<script>
+      openModal()
+      cancelBtn.addEventListener('click', closeModal)
+    })
+  </script>
+  <script src="//s1.hdslb.com/bfs/seed/toy/app/sdk/toy-sdk.js"></script>
+  <script src="main.js"></script>
+  <script>
     function updateFileName() {
-        const input = document.getElementById('IconImage');
-        const fileName = document.getElementById('fileName');
+      const input = document.getElementById('IconImage')
+      const fileName = document.getElementById('fileName')
 
-        if (input.files.length > 1) {
-            fileName.textContent = input.files.length + '个文件已选择';
-        } else {
-            fileName.textContent = input.files[0]?.name || '未选择文件';
-        }
+      if (input.files.length > 1) {
+        fileName.textContent = input.files.length + '个文件已选择'
+      } else {
+        fileName.textContent = input.files[0]?.name || '未选择文件'
+      }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        updateFileName();
-        document.getElementById('IconImage').addEventListener('change', updateFileName);
-    });
-</script>
-
+      updateFileName()
+      document
+        .getElementById('IconImage')
+        .addEventListener('change', updateFileName)
+    })
+  </script>
 </html>

@@ -30,6 +30,8 @@ npm run dev
 npm run pack
 ```
 
+三份 BDF 字体以字符串形式保存在 `src/fonts/*.js` 中，通过动态 `import()` 异步加载。构建后，将 `dist/` 中的所有 JS 文件上传到 bilitoy 的同一目录，包括 `main.js`、`zpix-8.js`、`zpix-9.js` 和 `zpix-10.js`；无需上传 `.bdf` 文件。字体加载完成后才可绘制图像。
+
 ## 技术栈
 
 - **构建工具**: Webpack
@@ -42,9 +44,10 @@ npm run pack
 
 ```
 ra2-cameo-gen/
-├── public/          # 静态资源（HTML、图片、字体、色盘文件等）
+├── public/          # 静态资源（HTML、图片、TTF 字体、色盘文件等）
 ├── hdimg/           # 高清素材
 ├── src/             # 源代码
+│   ├── fonts/       # 包装 BDF 字符串的 JS 模块
 │   └── index.js     # 主逻辑入口
 ├── webpack.config.js
 └── package.json

@@ -4,7 +4,17 @@ const BDF = require('bdfjs')
 const pica = require('pica')()
 const RgbQuant = require('rgbquant')
 
+const bilitoy = window.toy
+
 ;(async () => {
+  try {
+    bilitoy?.setContainerMode?.({
+      orientation: 'landscape',
+    })?.catch(console.warn)
+  } catch (error) {
+    console.warn(error)
+  }
+
   const newImg = (src) => {
     const newImgObj = document.createElement('img')
     newImgObj.src = src
@@ -43,12 +53,9 @@ const RgbQuant = require('rgbquant')
     ready: newImg('ready_text.png'),
     user_select: undefined,
   }
-  const defaultName = '补佳乐'
-  const cameoFileName = 'cameo.act'
-
-  const fontFileName_en = 'zpix-10.bdf'
-  const fontFileName_ch = 'zpix-9.bdf'
-  const fontFileName_ch_en = 'zpix-8.bdf'
+  const defaultName = '缺失名称'
+  const cameoBase64 =
+    'AAD/9v/////26v//9vr28vb/7vr25vb/+vbW9vLm3vb//+b/8u7y1vr/5ury5ub/0u7/7ubm0vL28uLW3ubu8ua+3urawur/0uL/wur21uLm3t7e3t7Sxubq5tbSrur/2tbi6tLC1tbW0tq6ytbu7s6u8tKRytLe8uIYztLWzs7OutLqzs66ws7SysbSmdru0sa2tsbmwsbCusbS0r6yxsaRvrrWvr6+lcb/tr7CncLizrKurrrW1rKRrra+trK20q5h9pWJyq55fcLimbLWrq66trKRnbLGrq6urq6lna6+oa6uzp2NsqWRrqGupaWupaWlnaqRmaW2laHOmaWqca7imap1kaG+tpWN2oV1gaHWlZ2qmZ2RjZm2gZ22oZWNSLLOcZ3CkZGqsol1kZWRgZWyvoVdlY15kYmRkY1pwoE4lYmFQKqueY2qbYnGdYW2hYWNeY15kYF1dYmRlYVEXYXKcYGqhX11kXVlYX2ueYFheXl5bXmVYYlVkXFMcXmJrmFZSH3KWXmucXV1XXmReXFhSHmuOIWRXXV1aXFhvlAwiWFZdWlpZWl9dWVVaWlpTGWlWWV5jVkwaWVZZWVhZWVQTGV9TGGRdVVMcVlAWWFlcVksZVlQWV1ZTF1lVV1MTFV5MF2RZUxMWVVAWVBMUFBMTFBdcUQsSFBMWUw4VUhI4gwIMFVtVUhAWUgwkTAcREhhSExAWUggREhQREw4SEhIMFBdSEBAREBMSEA4REQsQEBAQEA4WTgoNEQ0OEBERDg4RDgsODg4KDhVODgwKDxEWSggNDgkcRwURCwsKDg0ODAwMDA4RCwYODAkMDAwMDAkWRwIJDA0JDAkICxEMCgoMCQwNCggLCwUKCgoKCggICgwRBgUHCgkLCAgLCAUICAgRBAAHCAUFCAkFBw0JBQgKBgMJBgYXQAAGBgYFBgMKAwIDBgYEBQgLAwAGBAQEBAYEBAQGAwEBBAIKAAAEAgEEAgQBAwQCAgIBAgAEAAAAAgICAAAAAAMAAAA////'
 
   const rainbowSheet = {}
   /**
@@ -79,31 +86,40 @@ const RgbQuant = require('rgbquant')
     return colors
   }
   /** @type {number[][]} */
-  let actRGB
+  const actRGB = parseACT(Uint8Array.fromBase64(cameoBase64))
 
   /** @type {{ch:BDF.Font,en:BDF.Font,ch_en:BDF.Font,}} */
-  let fonts = {
+  const fonts = {
     ch: undefined,
     en: undefined,
     ch_en: undefined,
   }
 
-  fetch(cameoFileName).then(async (res) => {
-    const cameoBIN = await res.arrayBuffer()
-    actRGB = parseACT(new Uint8Array(cameoBIN))
-  })
-  fetch(fontFileName_en).then(async (res) => {
-    const bdfStr = await res.text()
-    fonts.en = BDF.parse(bdfStr)
-  })
-  fetch(fontFileName_ch).then(async (res) => {
-    const bdfStr = await res.text()
-    fonts.ch = BDF.parse(bdfStr)
-  })
-  fetch(fontFileName_ch_en).then(async (res) => {
-    const bdfStr = await res.text()
-    fonts.ch_en = BDF.parse(bdfStr)
-  })
+  Redraw.disabled = true
+  Promise.all([
+    import(/* webpackChunkName: "zpix-10" */ './fonts/zpix-10.js').then(
+      ({ default: text }) => {
+        fonts.en = BDF.parse(text)
+      },
+    ),
+    import(/* webpackChunkName: "zpix-9" */ './fonts/zpix-9.js').then(
+      ({ default: text }) => {
+        fonts.ch = BDF.parse(text)
+      },
+    ),
+    import(/* webpackChunkName: "zpix-8" */ './fonts/zpix-8.js').then(
+      ({ default: text }) => {
+        fonts.ch_en = BDF.parse(text)
+      },
+    ),
+  ])
+    .then(() => {
+      Redraw.disabled = false
+    })
+    .catch((error) => {
+      console.error('字体加载失败', error)
+      Redraw.textContent = '字体加载失败，请刷新重试'
+    })
 
   IconImage.addEventListener('change', async (e) => {
     if (IconImage.files.length) {
@@ -121,7 +137,7 @@ const RgbQuant = require('rgbquant')
     }
   })
 
-  const getIconCanvas = ({ isSHP = false, isRAW = false } = {}) => {
+  const getIconCanvas = async ({ isSHP = false, isRAW = false } = {}) => {
     const enableFullEnglishName = EnableFullEnglishName.checked
     const enableRatingSign = EnableRatingSign.checked
     const enableCameoColor = EnableCameoColor.checked
@@ -129,8 +145,31 @@ const RgbQuant = require('rgbquant')
 
     const ctx = ramCanvas.getContext('2d', { willReadFrequently: true })
 
+    let passState = false
+    if (UnitName.value) {
+      passState = true
+      let timeout
+      try {
+        if (typeof bilitoy?.checkInputSafety === 'function') {
+          const { passed } = await Promise.race([
+            bilitoy.checkInputSafety({ text: UnitName.value, scene: 'unitname' }),
+            new Promise((_, reject) => {
+              timeout = setTimeout(() => reject(new Error('内容检测超时')), 5000)
+            }),
+          ])
+          passState = passed
+        }
+      } catch (error) {
+        console.warn('[ra2] 内容检测不可用，本次放行', error)
+      } finally {
+        clearTimeout(timeout)
+      }
+      if (!passState) {
+        openModal(`您输入的内容好像出了点问题，请修改后重试。`)
+      }
+    }
     /** @type {string} */
-    const unitName = UnitName.value || defaultName
+    const unitName = passState ? UnitName.value || defaultName : defaultName
     const unitNameLines = unitName.split('\n')
 
     let textLineTotalWidth = new Array(unitNameLines.length).fill(0)
@@ -189,7 +228,7 @@ const RgbQuant = require('rgbquant')
         textCtx.putImageData(
           textImgData,
           textLineTotalWidth[lineIndex],
-          lineIndex * lineHeight - (enableFullEnglishName ? 1 : 0)
+          lineIndex * lineHeight - (enableFullEnglishName ? 1 : 0),
         )
 
         textLineTotalWidth[lineIndex] += width
@@ -264,7 +303,7 @@ const RgbQuant = require('rgbquant')
       0,
       48 - lineHeight * unitNameLines.length - 1,
       60,
-      lineHeight * unitNameLines.length + 1
+      lineHeight * unitNameLines.length + 1,
     )
     // 再画外框
     ctx.drawImage(resourcesIMG.lighter, 0, 0, 60, 48)
@@ -281,7 +320,7 @@ const RgbQuant = require('rgbquant')
         Math.ceil(30 - textLineTotalWidth[i] / 2) + 1,
         startY + i * lineHeight,
         1024,
-        lineHeight
+        lineHeight,
       )
 
       // 画文字渐变色
@@ -294,7 +333,7 @@ const RgbQuant = require('rgbquant')
         Math.ceil(30 - textLineTotalWidth[i] / 2),
         startY + i * lineHeight,
         1024,
-        lineHeight
+        lineHeight,
       )
     }
     // 最后将透明通道补全
@@ -438,6 +477,45 @@ const RgbQuant = require('rgbquant')
     aLink.click()
   }
 
+  let savingImage = false
+  const saveImage = async (url, event) => {
+    if (savingImage || event?.detail > 1) return
+    savingImage = true
+    const buttons = [OutputAsPNG, OutputAsPNG_HiRes]
+    const disabled = buttons.map((button) => button.disabled)
+    buttons.forEach((button) => {
+      button.disabled = true
+    })
+    try {
+      let savedToAlbum = false
+      try {
+        if (await bilitoy?.isSupport?.('saveImageToAlbum')) {
+          await bilitoy.saveImageToAlbum({ base64Data: url })
+          savedToAlbum = true
+        }
+      } catch {
+        // Only SDK failure falls back; a notification failure must not save twice.
+      }
+      if (!savedToAlbum) {
+        const blob = await (await fetch(url)).blob()
+        openDownloadDialog(blob, 'cameo.png')
+      }
+      try {
+        openModal(savedToAlbum ? '图像已经成功保存至您的相册' : '图像已经开始下载，请注意查看浏览器下载列表')
+      } catch (error) {
+        console.warn('保存提示显示失败', error)
+      }
+    } catch (error) {
+      console.error('[ra2] PNG 导出失败', error)
+      openModal('导出失败，请稍后重试')
+    } finally {
+      savingImage = false
+      buttons.forEach((button, index) => {
+        button.disabled = disabled[index]
+      })
+    }
+  }
+
   const enabelButtons = () => {
     OutputAsPNG.disabled = false
     OutputAsPNG_HiRes.disabled = false
@@ -446,20 +524,33 @@ const RgbQuant = require('rgbquant')
     OutputAsPCX_FullColor.disabled = false
   }
 
-  Redraw.addEventListener("click", () => {
-    /** @type {CanvasRenderingContext2D} */
-    const ctxView = ViewCanvas.getContext('2d')
-    ctxView.clearRect(0, 0, 60, 48)
-    ctxView.drawImage(getIconCanvas(), 0, 0, 60, 48)
-    enabelButtons()
+  Redraw.addEventListener('click', async () => {
+    if (Redraw.disabled) return
+    const label = Redraw.textContent
+    Redraw.disabled = true
+    Redraw.textContent = '绘制中…'
+    try {
+      const canvas = await getIconCanvas()
+      /** @type {CanvasRenderingContext2D} */
+      const ctxView = ViewCanvas.getContext('2d')
+      ctxView.clearRect(0, 0, 60, 48)
+      ctxView.drawImage(canvas, 0, 0, 60, 48)
+      enabelButtons()
+    } catch (error) {
+      console.error('[ra2] 绘制失败', error)
+      openModal('生成失败，请检查网络后重试')
+    } finally {
+      Redraw.disabled = false
+      Redraw.textContent = label
+    }
   })
 
-  OutputAsPNG.onclick = () => {
+  OutputAsPNG.onclick = (event) => {
     const url = ViewCanvas.toDataURL('image/png')
-    openDownloadDialog(url, 'cameo.png')
+    return saveImage(url, event)
   }
 
-  OutputAsPNG_HiRes.onclick = () => {
+  OutputAsPNG_HiRes.onclick = (event) => {
     const scale = 5
     const scaledCanvas = document.createElement('canvas')
     scaledCanvas.width = 60 * scale
@@ -467,14 +558,20 @@ const RgbQuant = require('rgbquant')
 
     const scaledCtx = scaledCanvas.getContext('2d')
     scaledCtx.imageSmoothingEnabled = false
-    scaledCtx.drawImage(ViewCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height)
+    scaledCtx.drawImage(
+      ViewCanvas,
+      0,
+      0,
+      scaledCanvas.width,
+      scaledCanvas.height,
+    )
 
     const url = scaledCanvas.toDataURL('image/png')
-    openDownloadDialog(url, 'cameo.png')
+    return saveImage(url, event)
   }
 
-  OutputAsSHP.onclick = () => {
-    const shpFile = getIconCanvas({
+  OutputAsSHP.onclick = async () => {
+    const shpFile = await getIconCanvas({
       isSHP: true,
     })
 
@@ -483,7 +580,7 @@ const RgbQuant = require('rgbquant')
 
   OutputAsPCX.onclick = async () => {
     /** @type {HTMLCanvasElement} */
-    const rawImg = getIconCanvas({
+    const rawImg = await getIconCanvas({
       isRAW: true,
     })
     const ctx = rawImg.getContext('2d', { willReadFrequently: true })
@@ -662,7 +759,7 @@ const RgbQuant = require('rgbquant')
 
   OutputAsPCX_FullColor.onclick = async () => {
     /** @type {HTMLCanvasElement} */
-    const rawImg = getIconCanvas({
+    const rawImg = await getIconCanvas({
       isRAW: true,
     })
     const ctx = rawImg.getContext('2d', { willReadFrequently: true })
@@ -772,5 +869,20 @@ const RgbQuant = require('rgbquant')
       type: 'image/pcx',
     })
     openDownloadDialog(pxcFile, 'cameo.pcx')
+  }
+  for (const button of [OutputAsSHP, OutputAsPCX, OutputAsPCX_FullColor]) {
+    const exportFile = button.onclick
+    button.onclick = async () => {
+      if (button.disabled) return
+      button.disabled = true
+      try {
+        await exportFile()
+      } catch (error) {
+        console.error('[ra2] 导出失败', error)
+        openModal('导出失败，请稍后重试')
+      } finally {
+        button.disabled = false
+      }
+    }
   }
 })()
