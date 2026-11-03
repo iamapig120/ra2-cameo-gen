@@ -291,6 +291,29 @@
         a:active {
             color: #ffff00 !important;
         }
+
+      .image-transform {
+        position: absolute;
+        left: 285px;
+        top: 30px;
+        width: 320px;
+        padding: 12px;
+        border: 1px solid #b30000;
+        background: #160000;
+        font-size: 14px;
+      }
+      #CropCanvas {
+        display: block;
+        width: 240px;
+        height: 192px;
+        margin: 0 auto 10px;
+        image-rendering: pixelated;
+        background: repeating-conic-gradient(#333 0% 25%, #555 0% 50%) 0 / 16px 16px;
+      }
+      .image-transform label { display: inline-block; width: 94px; margin-bottom: 8px; }
+      .image-transform input { width: 180px; vertical-align: middle; }
+      .image-transform select { width: 185px; background: #000; color: #ff0; }
+      #ImageStatus { margin-top: 8px; line-height: 20px; overflow-wrap: anywhere; }
     </style>
     <script>
     var _hmt = _hmt || []
@@ -348,13 +371,31 @@
             </p>
             <p class="label-item">
                 <input type="file" name="icon_image" id="IconImage" accept="image/*"
-                    onchange="document.getElementById('fileName').textContent = this.files[0].name" />
+                    onchange="document.getElementById('fileName').textContent = this.files[0] ? this.files[0].name : ''" />
                 <label for="IconImage" class="ra2cameo-common-button">选择原图
                 </label>
                 <span id="fileName"></span>
             </p>
 
-        </div>
+        </div>      <fieldset class="image-transform">
+        <legend>图像缩放与裁剪</legend>
+        <canvas id="CropCanvas" width="60" height="48" aria-label="裁剪范围预览"></canvas>
+        <label for="ImageMode">尺寸模式</label>
+        <select id="ImageMode">
+          <option value="original">原尺寸（居中裁剪）</option>
+          <option value="contain">等比适应（保留全图）</option>
+          <option value="cover">等比铺满（裁剪边缘）</option>
+        </select>
+        <label for="ImageZoom">缩放 <output id="ImageZoomValue">100%</output></label>
+        <input id="ImageZoom" type="range" min="25" max="400" value="100" step="1" />
+        <label for="ImageX">横向位置</label>
+        <input id="ImageX" type="range" min="0" max="100" value="50" />
+        <label for="ImageY">纵向位置</label>
+        <input id="ImageY" type="range" min="0" max="100" value="50" />
+        <button type="button" id="ResetImage" class="ra2cameo-common-button">重置裁剪</button>
+        <p id="ImageStatus" role="status">原图不拉伸；调整后请点击绘制图像。</p>
+      </fieldset>
+
 
         <div class="button-column">
             <button type="button" class="btn_r" id="Redraw">绘制图像</button>

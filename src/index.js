@@ -1,7 +1,7 @@
 const { deltaE } = require('color-delta-e')
 const BDF = require('bdfjs')
 // const palette = require('image-palette')
-const pica = require('pica')()
+const { drawSource, paintPCXCorners, cornerPixels } = require('./image-transform')
 const RgbQuant = require('rgbquant')
 
 ;(async () => {
@@ -105,20 +105,69 @@ const RgbQuant = require('rgbquant')
     fonts.ch_en = BDF.parse(bdfStr)
   })
 
-  IconImage.addEventListener('change', async (e) => {
-    if (IconImage.files.length) {
-      const img = newImg(URL.createObjectURL(IconImage.files[0]))
-      const canvas = document.createElement('canvas')
-      canvas.width = 60
-      canvas.height = 48
-      img.onload = () => {
-        URL.revokeObjectURL(img.src)
-        pica.resize(img, canvas).then((canvas) => {
-          resourcesIMG.user_select = canvas
-        })
-      }
-      resourcesIMG.user_select = canvas
+  const imageSettings = () => ({
+    mode: ImageMode.value,
+    zoom: Number(ImageZoom.value),
+    x: Number(ImageX.value),
+    y: Number(ImageY.value),
+  })
+  let imageRevision = 0
+  const invalidateImage = () => {
+    imageRevision++
+    for (const button of [OutputAsPNG, OutputAsPNG_HiRes, OutputAsSHP, OutputAsPCX, OutputAsPCX_FullColor]) {
+      button.disabled = true
     }
+  }
+  const previewImage = () => {
+    const image = resourcesIMG.user_select || resourcesIMG.image
+    if (!(image.naturalWidth || image.width)) return
+    drawSource(CropCanvas.getContext('2d'), image, imageSettings())
+    ImageZoomValue.textContent = ImageZoom.value + '%'
+    ImageStatus.textContent = (image.naturalWidth || image.width) + ' × ' + (image.naturalHeight || image.height) + '；调整后请点击绘制图像。'
+    invalidateImage()
+  }
+  const resetImage = () => {
+    ImageMode.value = 'original'
+    ImageZoom.value = 100
+    ImageX.value = ImageY.value = 50
+    previewImage()
+  }
+  for (const control of [ImageMode, ImageZoom, ImageX, ImageY]) {
+    control.addEventListener('input', previewImage)
+  }
+  ResetImage.addEventListener('click', resetImage)
+  resourcesIMG.image.addEventListener('load', previewImage)
+  if (resourcesIMG.image.complete) previewImage()
+
+  let imageRequest = 0
+  let pendingImage
+  IconImage.addEventListener('change', () => {
+    const file = IconImage.files[0]
+    if (!file) return
+    const request = ++imageRequest
+    invalidateImage()
+    ImageStatus.textContent = '正在读取原图…'
+    const url = URL.createObjectURL(file)
+    const img = document.createElement('img')
+    pendingImage = new Promise((resolve) => {
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        if (request === imageRequest) {
+          resourcesIMG.user_select = img
+          resetImage()
+        }
+        resolve()
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        if (request === imageRequest) {
+          ImageStatus.textContent = '图片读取失败，请重新选择。'
+          openModal('图片读取失败，请重新选择。')
+        }
+        resolve()
+      }
+      img.src = url
+    })
   })
 
   const getIconCanvas = ({ isSHP = false, isRAW = false } = {}) => {
@@ -257,7 +306,7 @@ const RgbQuant = require('rgbquant')
     }
 
     // 最先画背景图
-    ctx.drawImage(resourcesIMG.user_select || resourcesIMG.image, 0, 0, 60, 48)
+    drawSource(ctx, resourcesIMG.user_select || resourcesIMG.image, imageSettings())
     // 画文字底色
     ctx.fillStyle = 'rgba(0,0,0,0.60)'
     ctx.fillRect(
@@ -402,6 +451,7 @@ const RgbQuant = require('rgbquant')
       const readyCanvasCtx = ramCanvasForReady.getContext('2d', {
         willReadFrequently: true,
       })
+      readyCanvasCtx.clearRect(0, 0, 60, 18)
       readyCanvasCtx.drawImage(resourcesIMG.ready, 0, 0, 35, 18)
 
       const readyStartX = 13
@@ -446,12 +496,14 @@ const RgbQuant = require('rgbquant')
     OutputAsPCX_FullColor.disabled = false
   }
 
-  Redraw.addEventListener("click", () => {
+  Redraw.addEventListener("click", async () => {
+    await pendingImage
+    const revision = imageRevision
     /** @type {CanvasRenderingContext2D} */
-    const ctxView = ViewCanvas.getContext('2d')
+    const ctxView = ViewCanvas.getContext('2d', { willReadFrequently: true })
     ctxView.clearRect(0, 0, 60, 48)
     ctxView.drawImage(getIconCanvas(), 0, 0, 60, 48)
-    enabelButtons()
+    if (revision === imageRevision) enabelButtons()
   })
 
   OutputAsPNG.onclick = () => {
@@ -488,27 +540,20 @@ const RgbQuant = require('rgbquant')
     })
     const ctx = rawImg.getContext('2d', { willReadFrequently: true })
 
-    ctx.fillStyle = '#000000'
-
-    ctx.fillRect(0, 0, 2, 1)
-    ctx.fillRect(0, 1, 1, 1)
-    ctx.fillRect(58, 0, 2, 1)
-    ctx.fillRect(59, 1, 1, 1)
-
-    ctx.fillRect(0, 46, 1, 1)
-    ctx.fillRect(0, 47, 2, 1)
-    ctx.fillRect(59, 46, 1, 1)
-    ctx.fillRect(58, 47, 2, 1)
+    paintPCXCorners(ctx)
 
     const paletteSettings = {
-      colors: 256,
+      colors: 255,
       minHueCols: 2880,
     }
     const quant = new RgbQuant(paletteSettings)
     quant.sample(rawImg)
     // const { colors } = palette(ctx.getImageData(0, 0, 60, 48), 254)
     const colors = quant.palette(true, true)
-    const indexedMap = quant.reduce(rawImg, 2)
+    const indexedMap = quant.reduce(rawImg, 2).map((index) => index == null ? 0 : index + 1)
+    // Reserve index zero so quantization cannot alter the PCX transparency key.
+    colors.unshift([255, 0, 255])
+    for (const index of cornerPixels) indexedMap[index] = 0
 
     //   0 #0000FF
     // 255 #FFFFFF
@@ -599,7 +644,7 @@ const RgbQuant = require('rgbquant')
       ctx.fillStyle = `rgb(${r},${g},${b})`
       ctx.fillRect(pixIndex % 60, Math.floor(pixIndex / 60), 1, 1)
     }
-    const ctxView = ViewCanvas.getContext('2d')
+    const ctxView = ViewCanvas.getContext('2d', { willReadFrequently: true })
     ctxView.clearRect(0, 0, 60, 48)
     ctxView.drawImage(rawImg, 0, 0)
 
@@ -625,7 +670,7 @@ const RgbQuant = require('rgbquant')
         while (sameTimes) {
           if (sameTimes > 62) {
             pcxMainRaw.push(0xff, realValue)
-            sameTimes -= 62
+            sameTimes -= 63
           } else {
             pcxMainRaw.push(0xc0 + sameTimes + 1, realValue)
             sameTimes = 0
@@ -666,17 +711,7 @@ const RgbQuant = require('rgbquant')
       isRAW: true,
     })
     const ctx = rawImg.getContext('2d', { willReadFrequently: true })
-    ctx.fillStyle = '#000000'
-
-    ctx.fillRect(0, 0, 2, 1)
-    ctx.fillRect(0, 1, 1, 1)
-    ctx.fillRect(58, 0, 2, 1)
-    ctx.fillRect(59, 1, 1, 1)
-
-    ctx.fillRect(0, 46, 1, 1)
-    ctx.fillRect(0, 47, 2, 1)
-    ctx.fillRect(59, 46, 1, 1)
-    ctx.fillRect(58, 47, 2, 1)
+    paintPCXCorners(ctx)
 
     // 构建PCX文件
 
@@ -738,7 +773,7 @@ const RgbQuant = require('rgbquant')
       if (rgbArray[i] != rgbArray[i + 1]) {
         maxSameTimes_indexedMap[i] = 0
         // 按行压缩，更差压缩率，更好兼容性
-      } else if (i % 180 == 179) {
+      } else if (i % 60 == 59) {
         maxSameTimes_indexedMap[i] = 0
       } else {
         maxSameTimes_indexedMap[i] = maxSameTimes_indexedMap[i + 1] + 1
@@ -752,7 +787,7 @@ const RgbQuant = require('rgbquant')
         while (sameTimes) {
           if (sameTimes > 62) {
             pcxMainRaw.push(0xff, realValue)
-            sameTimes -= 62
+            sameTimes -= 63
           } else {
             pcxMainRaw.push(0xc0 + sameTimes + 1, realValue)
             sameTimes = 0
