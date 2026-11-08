@@ -15,6 +15,8 @@ function setup(toy = {}) {
   const timers = new Map()
   let nextTimer = 0
   const context = vm.createContext({
+    pendingImage: undefined,
+    imageRevision: 0,
     bilitoy: toy,
     UnitName: { value: '测试单位' },
     defaultName: '缺失名称',
@@ -121,11 +123,41 @@ test('render failure preserves the preview, shows a modal, and unlocks redraw', 
   assert.match(env.messages[0], /生成失败/)
 })
 
+test('redraw waits for source loading before rendering', async () => {
+  const env = setup()
+  let loaded
+  let calls = 0
+  env.context.pendingImage = new Promise((resolve) => { loaded = resolve })
+  const ui = setupRedraw(env, async () => { calls++; return {} })
+  ui.button.disabled = false
+  const pending = ui.click()
+  await Promise.resolve()
+  assert.equal(calls, 0)
+  loaded()
+  await pending
+  assert.equal(calls, 1)
+})
+
+test('crop changes during asynchronous rendering keep stale exports disabled', async () => {
+  const env = setup()
+  let rendered
+  const ui = setupRedraw(env, () => new Promise((resolve) => { rendered = resolve }))
+  ui.button.disabled = false
+  const pending = ui.click()
+  await Promise.resolve()
+  env.context.imageRevision++
+  rendered({})
+  await pending
+  assert.equal(env.context.OutputAsPNG.disabled, true)
+  assert.equal(env.context.OutputAsPCX.disabled, true)
+})
+
 test('hung safety check keeps loading visible and then restores redraw', async () => {
   const env = setup({ checkInputSafety: () => new Promise(() => {}) })
   const ui = setupRedraw(env, () => env.check())
   ui.button.disabled = false
   const pending = ui.click()
+  await Promise.resolve()
   assert.equal(ui.button.disabled, true)
   assert.equal(ui.button.textContent, '绘制中…')
   ;[...env.timers.values()][0].fn()

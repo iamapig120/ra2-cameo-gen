@@ -1,6 +1,7 @@
 const { deltaE } = require('color-delta-e')
 const BDF = require('bdfjs')
 // const palette = require('image-palette')
+const { drawSource, paintPCXCorners, cornerPixels } = require('./image-transform')
 const pica = require('pica')()
 const RgbQuant = require('rgbquant')
 
@@ -52,6 +53,7 @@ const bilitoy = window.toy
     outer: newImg('cameo_outer.png'),
     ready: newImg('ready_text.png'),
     user_select: undefined,
+    user_select_legacy: undefined,
   }
   const defaultName = '缺失名称'
   const cameoBase64 =
@@ -86,7 +88,7 @@ const bilitoy = window.toy
     return colors
   }
   /** @type {number[][]} */
-  const actRGB = parseACT(Uint8Array.fromBase64(cameoBase64))
+  const actRGB = parseACT(Uint8Array.from(atob(cameoBase64), (char) => char.charCodeAt(0)))
 
   /** @type {{ch:BDF.Font,en:BDF.Font,ch_en:BDF.Font,}} */
   const fonts = {
@@ -121,20 +123,85 @@ const bilitoy = window.toy
       Redraw.textContent = '字体加载失败，请刷新重试'
     })
 
-  IconImage.addEventListener('change', async (e) => {
-    if (IconImage.files.length) {
-      const img = newImg(URL.createObjectURL(IconImage.files[0]))
-      const canvas = document.createElement('canvas')
-      canvas.width = 60
-      canvas.height = 48
-      img.onload = () => {
-        URL.revokeObjectURL(img.src)
-        pica.resize(img, canvas).then((canvas) => {
-          resourcesIMG.user_select = canvas
-        })
-      }
-      resourcesIMG.user_select = canvas
+  const imageSettings = () => ({
+    mode: ImageMode.value,
+    zoom: Number(ImageZoom.value),
+    x: Number(ImageX.value),
+    y: Number(ImageY.value),
+  })
+  const imageSource = () => ImageMode.value === 'legacy' && resourcesIMG.user_select_legacy
+    ? resourcesIMG.user_select_legacy : resourcesIMG.user_select || resourcesIMG.image
+  let imageRevision = 0
+  const invalidateImage = () => {
+    imageRevision++
+    for (const button of [OutputAsPNG, OutputAsPNG_HiRes, OutputAsSHP, OutputAsPCX, OutputAsPCX_FullColor]) {
+      button.disabled = true
     }
+  }
+  const previewImage = () => {
+    const image = resourcesIMG.user_select || resourcesIMG.image
+    if (!(image.naturalWidth || image.width)) return
+    drawSource(CropCanvas.getContext('2d', { willReadFrequently: true }), imageSource(), imageSettings())
+    ImageZoomValue.textContent = ImageZoom.value + '%'
+    ImageStatus.textContent = (image.naturalWidth || image.width) + ' × ' + (image.naturalHeight || image.height) + '；调整后请点击绘制图像。'
+    invalidateImage()
+  }
+  const resetImage = () => {
+    ImageMode.value = 'original'
+    ImageZoom.value = 100
+    ImageX.value = ImageY.value = 50
+    previewImage()
+  }
+  for (const control of [ImageMode, ImageZoom, ImageX, ImageY]) {
+    control.addEventListener('input', previewImage)
+  }
+  ResetImage.addEventListener('click', resetImage)
+  resourcesIMG.image.addEventListener('load', previewImage)
+  if (resourcesIMG.image.complete) previewImage()
+
+  let imageRequest = 0
+  let pendingImage
+  IconImage.addEventListener('change', () => {
+    const file = IconImage.files[0]
+    if (!file) return
+    const request = ++imageRequest
+    invalidateImage()
+    ImageStatus.textContent = '正在读取原图…'
+    const url = URL.createObjectURL(file)
+    const img = document.createElement('img')
+    pendingImage = new Promise((resolve) => {
+      img.onload = async () => {
+        URL.revokeObjectURL(url)
+        try {
+          const legacyCanvas = document.createElement('canvas')
+          legacyCanvas.width = 60
+          legacyCanvas.height = 48
+          await pica.resize(img, legacyCanvas)
+          if (request === imageRequest) {
+            resourcesIMG.user_select = img
+            resourcesIMG.user_select_legacy = legacyCanvas
+            resetImage()
+          }
+        } catch (error) {
+          if (request === imageRequest) {
+            ImageStatus.textContent = '图片缩放失败，请重新选择。'
+            console.error(error)
+            openModal('图片缩放失败，请重新选择。')
+          }
+        } finally {
+          resolve()
+        }
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        if (request === imageRequest) {
+          ImageStatus.textContent = '图片读取失败，请重新选择。'
+          openModal('图片读取失败，请重新选择。')
+        }
+        resolve()
+      }
+      img.src = url
+    })
   })
 
   const getIconCanvas = async ({ isSHP = false, isRAW = false } = {}) => {
@@ -296,7 +363,7 @@ const bilitoy = window.toy
     }
 
     // 最先画背景图
-    ctx.drawImage(resourcesIMG.user_select || resourcesIMG.image, 0, 0, 60, 48)
+    drawSource(ctx, imageSource(), imageSettings())
     // 画文字底色
     ctx.fillStyle = 'rgba(0,0,0,0.60)'
     ctx.fillRect(
@@ -441,6 +508,7 @@ const bilitoy = window.toy
       const readyCanvasCtx = ramCanvasForReady.getContext('2d', {
         willReadFrequently: true,
       })
+      readyCanvasCtx.clearRect(0, 0, 60, 18)
       readyCanvasCtx.drawImage(resourcesIMG.ready, 0, 0, 35, 18)
 
       const readyStartX = 13
@@ -530,12 +598,14 @@ const bilitoy = window.toy
     Redraw.disabled = true
     Redraw.textContent = '绘制中…'
     try {
+      await pendingImage
+      const revision = imageRevision
       const canvas = await getIconCanvas()
       /** @type {CanvasRenderingContext2D} */
-      const ctxView = ViewCanvas.getContext('2d')
+      const ctxView = ViewCanvas.getContext('2d', { willReadFrequently: true })
       ctxView.clearRect(0, 0, 60, 48)
       ctxView.drawImage(canvas, 0, 0, 60, 48)
-      enabelButtons()
+      if (revision === imageRevision) enabelButtons()
     } catch (error) {
       console.error('[ra2] 绘制失败', error)
       openModal('生成失败，请检查网络后重试')
@@ -585,27 +655,20 @@ const bilitoy = window.toy
     })
     const ctx = rawImg.getContext('2d', { willReadFrequently: true })
 
-    ctx.fillStyle = '#000000'
-
-    ctx.fillRect(0, 0, 2, 1)
-    ctx.fillRect(0, 1, 1, 1)
-    ctx.fillRect(58, 0, 2, 1)
-    ctx.fillRect(59, 1, 1, 1)
-
-    ctx.fillRect(0, 46, 1, 1)
-    ctx.fillRect(0, 47, 2, 1)
-    ctx.fillRect(59, 46, 1, 1)
-    ctx.fillRect(58, 47, 2, 1)
+    paintPCXCorners(ctx)
 
     const paletteSettings = {
-      colors: 256,
+      colors: 255,
       minHueCols: 2880,
     }
     const quant = new RgbQuant(paletteSettings)
     quant.sample(rawImg)
     // const { colors } = palette(ctx.getImageData(0, 0, 60, 48), 254)
     const colors = quant.palette(true, true)
-    const indexedMap = quant.reduce(rawImg, 2)
+    const indexedMap = quant.reduce(rawImg, 2).map((index) => index == null ? 0 : index + 1)
+    // Reserve index zero so quantization cannot alter the PCX transparency key.
+    colors.unshift([255, 0, 255])
+    for (const index of cornerPixels) indexedMap[index] = 0
 
     //   0 #0000FF
     // 255 #FFFFFF
@@ -696,7 +759,7 @@ const bilitoy = window.toy
       ctx.fillStyle = `rgb(${r},${g},${b})`
       ctx.fillRect(pixIndex % 60, Math.floor(pixIndex / 60), 1, 1)
     }
-    const ctxView = ViewCanvas.getContext('2d')
+    const ctxView = ViewCanvas.getContext('2d', { willReadFrequently: true })
     ctxView.clearRect(0, 0, 60, 48)
     ctxView.drawImage(rawImg, 0, 0)
 
@@ -722,7 +785,7 @@ const bilitoy = window.toy
         while (sameTimes) {
           if (sameTimes > 62) {
             pcxMainRaw.push(0xff, realValue)
-            sameTimes -= 62
+            sameTimes -= 63
           } else {
             pcxMainRaw.push(0xc0 + sameTimes + 1, realValue)
             sameTimes = 0
@@ -763,17 +826,7 @@ const bilitoy = window.toy
       isRAW: true,
     })
     const ctx = rawImg.getContext('2d', { willReadFrequently: true })
-    ctx.fillStyle = '#000000'
-
-    ctx.fillRect(0, 0, 2, 1)
-    ctx.fillRect(0, 1, 1, 1)
-    ctx.fillRect(58, 0, 2, 1)
-    ctx.fillRect(59, 1, 1, 1)
-
-    ctx.fillRect(0, 46, 1, 1)
-    ctx.fillRect(0, 47, 2, 1)
-    ctx.fillRect(59, 46, 1, 1)
-    ctx.fillRect(58, 47, 2, 1)
+    paintPCXCorners(ctx)
 
     // 构建PCX文件
 
@@ -835,7 +888,7 @@ const bilitoy = window.toy
       if (rgbArray[i] != rgbArray[i + 1]) {
         maxSameTimes_indexedMap[i] = 0
         // 按行压缩，更差压缩率，更好兼容性
-      } else if (i % 180 == 179) {
+      } else if (i % 60 == 59) {
         maxSameTimes_indexedMap[i] = 0
       } else {
         maxSameTimes_indexedMap[i] = maxSameTimes_indexedMap[i + 1] + 1
@@ -849,7 +902,7 @@ const bilitoy = window.toy
         while (sameTimes) {
           if (sameTimes > 62) {
             pcxMainRaw.push(0xff, realValue)
-            sameTimes -= 62
+            sameTimes -= 63
           } else {
             pcxMainRaw.push(0xc0 + sameTimes + 1, realValue)
             sameTimes = 0
