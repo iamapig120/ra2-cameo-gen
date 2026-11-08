@@ -15,6 +15,8 @@ module.exports = async function checkBrowser(page, url, artifactDir) {
     }
   })
   await page.goto(url, { waitUntil: 'networkidle' })
+  await page.addScriptTag({ path: require.resolve('pica') })
+  await page.evaluate(() => { window.legacyPica = window.pica() })
   await page.evaluate(() => { overlay.style.display = modal.style.display = 'none' })
   await page.locator('#UnitName').fill('Alpha')
   const fixture = await page.evaluate(() => {
@@ -47,7 +49,7 @@ module.exports = async function checkBrowser(page, url, artifactDir) {
         const image = new Image(); image.src = 'data:image/png;base64,' + base64; await image.decode()
         const scale = (mode === 'contain' ? Math.min(60 / width, 48 / height) : mode === 'cover' ? Math.max(60 / width, 48 / height) : 1) * 1.5
         const c = document.createElement('canvas'); c.width = 60; c.height = 48
-        const ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high'
+        const ctx = c.getContext('2d', { willReadFrequently: true }); ctx.imageSmoothingQuality = 'high'
         ctx.drawImage(image, (60 - width * scale) * .2, (48 - height * scale) * .8, width * scale, height * scale)
         return c.toDataURL() === CropCanvas.toDataURL() && OutputAsPNG.disabled
       }, { width, height, mode, base64 })
@@ -55,9 +57,49 @@ module.exports = async function checkBrowser(page, url, artifactDir) {
     }
   }
 
+  for (const [width, height] of [[240, 48], [48, 240], [100, 100], [60, 48], [20, 10]]) {
+    for (const transparent of [false, true]) {
+      const base64 = await page.evaluate(({ width, height, transparent }) => {
+        const c = document.createElement('canvas'); c.width = width; c.height = height
+        const ctx = c.getContext('2d'), pixels = ctx.createImageData(width, height)
+        for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4
+          pixels.data.set([(x * 17 + y * 7) % 256, (x * 5 + y * 19) % 256, (x ^ y) % 256,
+            transparent ? (x < width / 3 ? 0 : x < width * 2 / 3 ? 96 : 192) : 255], i)
+        }
+        ctx.putImageData(pixels, 0, 0)
+        return c.toDataURL().split(',')[1]
+      }, { width, height, transparent })
+      await page.locator('#IconImage').setInputFiles({ name: 'legacy.png', mimeType: 'image/png', buffer: Buffer.from(base64, 'base64') })
+      await page.waitForFunction(([w, h]) => ImageStatus.textContent.startsWith(w + ' × ' + h), [width, height])
+      const comparison = await page.evaluate(async (base64) => {
+        ImageMode.value = 'legacy'; ImageZoom.value = 100; ImageX.value = ImageY.value = 50
+        ImageMode.dispatchEvent(new Event('input'))
+        const image = new Image(); image.src = 'data:image/png;base64,' + base64; await image.decode()
+        const oldImport = document.createElement('canvas'); oldImport.width = 60; oldImport.height = 48
+        await legacyPica.resize(image, oldImport)
+        const oldDraw = document.createElement('canvas'); oldDraw.width = 60; oldDraw.height = 48
+        const ctx = oldDraw.getContext('2d', { willReadFrequently: true }); ctx.drawImage(oldImport, 0, 0, 60, 48)
+        const expected = ctx.getImageData(0, 0, 60, 48).data
+        const actual = CropCanvas.getContext('2d').getImageData(0, 0, 60, 48).data
+        const equal = expected.every((value, i) => value === actual[i])
+        const differences = Array.from(expected, (value, i) => value === actual[i] ? null : { i, expected: value, actual: actual[i] }).filter(Boolean)
+        const first = CropCanvas.toDataURL()
+        ImageMode.dispatchEvent(new Event('input'))
+        return { equal, differences: differences.slice(0, 12), differenceCount: differences.length, repeatEqual: first === CropCanvas.toDataURL() }
+      }, base64)
+      assert.ok(comparison.equal, `old Pica import pixels ${width}x${height} alpha=${transparent}: ${JSON.stringify(comparison)}`)
+      assert.ok(comparison.repeatEqual, 'legacy preview clears alpha before every redraw')
+    }
+  }
+  await page.locator('#ResetImage').click()
+  assert.equal(await page.locator('#ImageMode').inputValue(), 'original')
+  assert.equal(await page.locator('#ImageZoom').inputValue(), '100')
+  assert.equal(await page.locator('#ImageZoom').getAttribute('min'), '25')
+
   await page.locator('#IconImage').setInputFiles({ name: 'alpha.png', mimeType: 'image/png', buffer: Buffer.from(fixture, 'base64') })
   await page.waitForFunction(() => ImageStatus.textContent.startsWith('120 × 96'))
-  await page.evaluate(() => { ImageZoom.value = 25; ImageZoom.dispatchEvent(new Event('input')) })
+  await page.evaluate(() => { ImageMode.value = 'legacy'; ImageZoom.value = 25; ImageZoom.dispatchEvent(new Event('input')) })
   async function redraw() {
     await page.locator('#Redraw').click()
     await page.waitForFunction(() => !Redraw.disabled && !OutputAsPNG.disabled)
@@ -174,5 +216,5 @@ module.exports = async function checkBrowser(page, url, artifactDir) {
     await page.screenshot({ path: artifactDir + '/screen-mobile.png' })
   }
   assert.deepEqual(errors, [], 'no page runtime errors')
-  return { cropCases: 15, repeatedAlpha: true, pcxDecoded: 4, png: true, hiresPNG: true, shp: true, pageErrors: errors }
+  return { cropCases: 15, legacyPixelCases: 10, defaultMode: 'original', minimumZoom: 25, repeatedAlpha: true, pcxDecoded: 4, png: true, hiresPNG: true, shp: true, pageErrors: errors }
 }

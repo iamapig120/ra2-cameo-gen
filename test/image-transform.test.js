@@ -28,6 +28,13 @@ test('crop controls reach both image edges with browser natural dimensions', () 
   assert.deepEqual(imagePlacement(image, { x: 100, y: 100 }), [-60, -48, 120, 96])
 })
 
+test('legacy fill stretches every aspect ratio to the old 60 by 48 baseline', () => {
+  for (const [width, height] of [[240, 48], [48, 240], [100, 100], [20, 10]]) {
+    assert.deepEqual(imagePlacement({ width, height }, { mode: 'legacy' }), [0, 0, 60, 48])
+    assert.deepEqual(imagePlacement({ width, height }, { mode: 'legacy', zoom: 200, x: 100, y: 0 }).map((value) => value || 0), [-60, 0, 120, 96])
+  }
+})
+
 test('every source paint clears its whole canvas before alpha compositing', () => {
   const calls = []
   const ctx = {

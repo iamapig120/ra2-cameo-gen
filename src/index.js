@@ -2,6 +2,7 @@ const { deltaE } = require('color-delta-e')
 const BDF = require('bdfjs')
 // const palette = require('image-palette')
 const { drawSource, paintPCXCorners, cornerPixels } = require('./image-transform')
+const pica = require('pica')()
 const RgbQuant = require('rgbquant')
 
 ;(async () => {
@@ -42,6 +43,7 @@ const RgbQuant = require('rgbquant')
     outer: newImg('cameo_outer.png'),
     ready: newImg('ready_text.png'),
     user_select: undefined,
+    user_select_legacy: undefined,
   }
   const defaultName = '补佳乐'
   const cameoFileName = 'cameo.act'
@@ -111,6 +113,8 @@ const RgbQuant = require('rgbquant')
     x: Number(ImageX.value),
     y: Number(ImageY.value),
   })
+  const imageSource = () => ImageMode.value === 'legacy' && resourcesIMG.user_select_legacy
+    ? resourcesIMG.user_select_legacy : resourcesIMG.user_select || resourcesIMG.image
   let imageRevision = 0
   const invalidateImage = () => {
     imageRevision++
@@ -121,7 +125,7 @@ const RgbQuant = require('rgbquant')
   const previewImage = () => {
     const image = resourcesIMG.user_select || resourcesIMG.image
     if (!(image.naturalWidth || image.width)) return
-    drawSource(CropCanvas.getContext('2d'), image, imageSettings())
+    drawSource(CropCanvas.getContext('2d', { willReadFrequently: true }), imageSource(), imageSettings())
     ImageZoomValue.textContent = ImageZoom.value + '%'
     ImageStatus.textContent = (image.naturalWidth || image.width) + ' × ' + (image.naturalHeight || image.height) + '；调整后请点击绘制图像。'
     invalidateImage()
@@ -150,13 +154,27 @@ const RgbQuant = require('rgbquant')
     const url = URL.createObjectURL(file)
     const img = document.createElement('img')
     pendingImage = new Promise((resolve) => {
-      img.onload = () => {
+      img.onload = async () => {
         URL.revokeObjectURL(url)
-        if (request === imageRequest) {
-          resourcesIMG.user_select = img
-          resetImage()
+        try {
+          const legacyCanvas = document.createElement('canvas')
+          legacyCanvas.width = 60
+          legacyCanvas.height = 48
+          await pica.resize(img, legacyCanvas)
+          if (request === imageRequest) {
+            resourcesIMG.user_select = img
+            resourcesIMG.user_select_legacy = legacyCanvas
+            resetImage()
+          }
+        } catch (error) {
+          if (request === imageRequest) {
+            ImageStatus.textContent = '图片缩放失败，请重新选择。'
+            console.error(error)
+            openModal('图片缩放失败，请重新选择。')
+          }
+        } finally {
+          resolve()
         }
-        resolve()
       }
       img.onerror = () => {
         URL.revokeObjectURL(url)
@@ -306,7 +324,7 @@ const RgbQuant = require('rgbquant')
     }
 
     // 最先画背景图
-    drawSource(ctx, resourcesIMG.user_select || resourcesIMG.image, imageSettings())
+    drawSource(ctx, imageSource(), imageSettings())
     // 画文字底色
     ctx.fillStyle = 'rgba(0,0,0,0.60)'
     ctx.fillRect(

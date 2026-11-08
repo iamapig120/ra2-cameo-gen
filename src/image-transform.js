@@ -6,8 +6,8 @@ function imagePlacement(image, { mode = 'original', zoom = 100, x = 50, y = 50 }
   const fit = mode === 'contain' ? Math.min(60 / width, 48 / height)
     : mode === 'cover' ? Math.max(60 / width, 48 / height) : 1
   const scale = fit * zoom / 100
-  const w = width * scale
-  const h = height * scale
+  const w = mode === 'legacy' ? 60 * zoom / 100 : width * scale
+  const h = mode === 'legacy' ? 48 * zoom / 100 : height * scale
   return [(60 - w) * x / 100, (48 - h) * y / 100, w, h]
 }
 
